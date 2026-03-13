@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShiftMatch – Kurzfristige Schichten</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1f1f1f;
+    --border: #2a2a2a;
+    --accent: #ff5c35;
+    --accent2: #ffb347;
+    --text: #f0ece4;
+    --text-muted: #888;
+    --green: #3ddc84;
+    --blue: #4da6ff;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 9999; opacity: 0.5;
+  }
+
+  /* ── LANDING ── */
+  #landing {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, #ff5c3522 0%, transparent 70%);
+    animation: fadeIn 0.6s ease;
+  }
+  .logo-mark {
+    width: 72px; height: 72px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-size: 2rem; font-weight: 800;
+    margin: 0 auto 1.5rem;
+    box-shadow: 0 0 40px #ff5c3544;
+    animation: pulse 3s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 40px #ff5c3544} 50%{box-shadow:0 0 70px #ff5c3577} }
+  .landing-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 1rem;
+  }
+  .landing-title span { color: var(--accent); }
+  .landing-sub {
+    color: var(--text-muted);
+    font-size: 1.15rem;
+    max-width: 440px;
+    line-height: 1.6;
+    margin-bottom: 3rem;
+  }
+  .role-cards {
+    display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;
+    margin-bottom: 1.5rem;
+  }
+  .role-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.8rem 2.2rem;
+    cursor: pointer;
+    transition: all 0.25s;
+    min-width: 180px;
+  }
+  .role-card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: 0 12px 40px #ff5c3530; }
+  .role-card .icon { font-size: 2.2rem; margin-bottom: 0.6rem; }
+  .role-card h3 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.1rem; margin-bottom: 0.25rem; }
+  .role-card p { color: var(--text-muted); font-size: 0.85rem; }
+  .lang-toggle { position: fixed; top: 1.2rem; right: 1.5rem; display: flex; gap: 0.4rem; z-index: 100; }
+  .lang-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); padding: 0.3rem 0.7rem; border-radius: 8px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
+  .lang-btn.active { border-color: var(--accent); color: var(--accent); }
+
+  /* ── MAIN APP ── */
+  #app { display: none; min-height: 100vh; animation: fadeIn 0.4s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+  /* ── NAV ── */
+  .topbar {
+    position: sticky; top: 0; z-index: 200;
+    background: #0d0d0dcc;
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0.85rem 1.5rem;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .topbar-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.2rem; }
+  .topbar-logo span { color: var(--accent); }
+  .topbar-right { display: flex; align-items: center; gap: 0.75rem; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg,var(--accent),var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+  .badge-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+  /* ── BOTTOM NAV ── */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: #161616ee;
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 200;
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    padding: 0.7rem 0.5rem 0.9rem;
+    cursor: pointer; color: var(--text-muted);
+    font-size: 0.7rem; gap: 0.2rem;
+    transition: color 0.2s;
+    border: none; background: none; font-family: 'DM Sans', sans-serif;
+  }
+  .nav-item .nav-icon { font-size: 1.3rem; }
+  .nav-item.active { color: var(--accent); }
+  .nav-item .notif-badge {
+    position: relative;
+  }
+  .nav-item .notif-badge::after {
+    content: '3'; position: absolute; top: -6px; right: -10px;
+    background: var(--accent); color: white; font-size: 0.6rem;
+    width: 16px; height: 16px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+  }
+
+  /* ── CONTENT ── */
+  .content { padding: 1.5rem; padding-bottom: 6rem; max-width: 600px; margin: 0 auto; }
+  .screen { display: none; }
+  .screen.active { display: block; animation: fadeIn 0.3s ease; }
+
+  /* ── COMPONENTS ── */
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.5rem; font-weight: 800;
+    margin-bottom: 0.25rem;
+  }
+  .section-sub { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    transition: border-color 0.2s, transform 0.2s;
+    cursor: pointer;
+  }
+  .card:hover { border-color: #444; transform: translateY(-2px); }
+
+  .shift-card { position: relative; overflow: hidden; }
+  .shift-card::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: linear-gradient(to bottom, var(--accent), var(--accent2));
+    border-radius: 3px 0 0 3px;
+  }
+  .shift-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
+  .shift-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.05rem; }
+  .shift-badge {
+    font-size: 0.72rem; font-weight: 600;
+    padding: 0.2rem 0.6rem; border-radius: 20px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .badge-urgent { background: #ff5c3520; color: var(--accent); border: 1px solid #ff5c3540; }
+  .badge-open { background: #3ddc8420; color: var(--green); border: 1px solid #3ddc8440; }
+  .badge-filled { background: #4da6ff20; color: var(--blue); border: 1px solid #4da6ff40; }
+  .shift-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+  .meta-pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0.2rem 0.65rem;
+    font-size: 0.8rem; color: var(--text-muted);
+    display: flex; align-items: center; gap: 0.3rem;
+  }
+  .shift-footer { display: flex; justify-content: space-between; align-items: center; }
+  .pay { font-size: 1.1rem; font-weight: 700; color: var(--green); font-family: 'Syne', sans-serif; }
+  .apply-btn, .btn {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: white; border: none;
+    padding: 0.5rem 1.2rem; border-radius: 10px;
+    font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; transition: opacity 0.2s, transform 0.15s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .apply-btn:hover, .btn:hover { opacity: 0.88; transform: scale(0.98); }
+  .btn-outline {
+    background: transparent;
+    border: 1.5px solid var(--border);
+    color: var(--text);
+    padding: 0.5rem 1.2rem; border-radius: 10px;
+    font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── FORM ── */
+  .form-group { margin-bottom: 1.1rem; }
+  label { display: block; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; }
+  input, select, textarea {
+    width: 100%; background: var(--surface2);
+    border: 1.5px solid var(--border);
+    color: var(--text);
+    padding: 0.75rem 1rem; border-radius: var(--radius-sm);
+    font-size: 0.95rem; font-family: 'DM Sans', sans-serif;
+    transition: border-color 0.2s; outline: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 80px; }
+  select option { background: var(--surface2); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+  /* ── STATS BAR ── */
+  .stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    text-align: center;
+  }
+  .stat-num { font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800; }
+  .stat-label { color: var(--text-muted); font-size: 0.75rem; margin-top: 0.2rem; }
+
+  /* ── PROFILE ── */
+  .profile-header {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    display: flex; align-items: center; gap: 1.2rem;
+    margin-bottom: 1.5rem;
+  }
+  .profile-avatar {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; font-weight: 800; font-family: 'Syne', sans-serif;
+    flex-shrink: 0;
+  }
+  .profile-name { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 700; }
+  .profile-role { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.2rem; }
+  .stars { color: var(--accent2); font-size: 0.9rem; margin-top: 0.3rem; }
+
+  .skills-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+  .skill-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.8rem;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .skill-chip.selected { background: #ff5c3520; border-color: var(--accent); color: var(--accent); }
+
+  /* ── CHAT ── */
+  .chat-list-item {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.75rem;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .chat-list-item:hover { border-color: #444; }
+  .chat-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
+  .chat-info { flex: 1; }
+  .chat-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.2rem; }
+  .chat-preview { color: var(--text-muted); font-size: 0.82rem; }
+  .chat-time { color: var(--text-muted); font-size: 0.75rem; }
+  .unread-dot { width: 10px; height: 10px; background: var(--accent); border-radius: 50%; flex-shrink: 0; }
+
+  .chat-window { display: none; }
+  .chat-window.open { display: flex; flex-direction: column; height: calc(100vh - 120px); }
+  .chat-header { display: flex; align-items: center; gap: 0.75rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+  .chat-back { background: none; border: none; color: var(--text); cursor: pointer; font-size: 1.2rem; }
+  .messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; padding-bottom: 1rem; }
+  .msg { max-width: 75%; padding: 0.6rem 0.9rem; border-radius: 12px; font-size: 0.9rem; line-height: 1.45; }
+  .msg.them { background: var(--surface2); border: 1px solid var(--border); align-self: flex-start; border-radius: 4px 12px 12px 12px; }
+  .msg.me { background: linear-gradient(135deg,var(--accent),var(--accent2)); align-self: flex-end; border-radius: 12px 4px 12px 12px; }
+  .msg-time { font-size: 0.68rem; color: var(--text-muted); margin-top: 3px; }
+  .msg.me .msg-time { text-align: right; color: #ffffff99; }
+  .chat-input-row { display: flex; gap: 0.5rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+  .chat-input-row input { flex: 1; }
+  .send-btn { background: linear-gradient(135deg,var(--accent),var(--accent2)); border: none; color: white; width: 44px; height: 44px; border-radius: 10px; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s; flex-shrink: 0; }
+
+  /* ── MODAL ── */
+  .modal-overlay { position: fixed; inset: 0; background: #000000bb; z-index: 500; display: none; align-items: center; justify-content: center; padding: 1rem; }
+  .modal-overlay.open { display: flex; animation: fadeIn 0.2s ease; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; width: 100%; max-width: 460px; max-height: 85vh; overflow-y: auto; }
+  .modal-title { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 800; margin-bottom: 1.25rem; }
+  .modal-actions { display: flex; gap: 0.75rem; margin-top: 1.25rem; }
+  .modal-actions .btn { flex: 1; padding: 0.7rem; text-align: center; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 5.5rem; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--green); color: #000; font-weight: 600; font-size: 0.9rem;
+    padding: 0.7rem 1.5rem; border-radius: 30px;
+    opacity: 0; transition: all 0.3s; z-index: 999; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── EMPLOYER DASHBOARD ── */
+  .applicant-row {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.85rem;
+    background: var(--surface2);
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.5rem;
+  }
+  .applicant-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+  .applicant-name { font-weight: 600; font-size: 0.9rem; }
+  .applicant-meta { color: var(--text-muted); font-size: 0.78rem; }
+  .applicant-actions { margin-left: auto; display: flex; gap: 0.4rem; }
+  .btn-accept { background: #3ddc8420; border: 1px solid #3ddc8450; color: var(--green); padding: 0.3rem 0.75rem; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; font-family: 'DM Sans',sans-serif; transition: all 0.2s; }
+  .btn-accept:hover { background: #3ddc8440; }
+  .btn-reject { background: #ff5c3520; border: 1px solid #ff5c3540; color: var(--accent); padding: 0.3rem 0.75rem; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; font-family: 'DM Sans',sans-serif; transition: all 0.2s; }
+
+  .divider { height: 1px; background: var(--border); margin: 1.25rem 0; }
+  .tag-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+
+  /* ── RATING ── */
+  .star-rating { display: flex; gap: 0.3rem; font-size: 1.5rem; cursor: pointer; }
+  .star-rating span { transition: color 0.15s; color: var(--border); }
+  .star-rating span.lit { color: var(--accent2); }
+
+  .rating-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+  }
+  .rating-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-muted); }
+  .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+  .empty-state p { font-size: 0.9rem; }
+
+  .filter-row { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.25rem; margin-bottom: 1.25rem; scrollbar-width: none; }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .filter-chip { background: var(--surface); border: 1.5px solid var(--border); border-radius: 20px; padding: 0.35rem 0.9rem; font-size: 0.82rem; cursor: pointer; white-space: nowrap; transition: all 0.2s; color: var(--text-muted); }
+  .filter-chip.active { border-color: var(--accent); color: var(--accent); background: #ff5c3515; }
+
+  .availability-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 0.4rem; }
+  .avail-day { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px; padding: 0.5rem 0.25rem; text-align: center; font-size: 0.72rem; cursor: pointer; transition: all 0.2s; }
+  .avail-day.on { background: #ff5c3520; border-color: var(--accent); color: var(--accent); }
+  .avail-day .day-name { font-weight: 600; display: block; margin-bottom: 2px; }
+
+  @media (max-width: 400px) { .form-row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<!-- Lang Toggle -->
+<div class="lang-toggle">
+  <button class="lang-btn active" onclick="setLang('de')">DE</button>
+  <button class="lang-btn" onclick="setLang('en')">EN</button>
+</div>
+
+<!-- LANDING -->
+<div id="landing">
+  <div class="logo-mark">S</div>
+  <h1 class="landing-title">Shift<span>Match</span></h1>
+  <p class="landing-sub" id="landing-sub">Kurzfristige Schichten sofort besetzen – für Gastro, Events & mehr.</p>
+  <div class="role-cards">
+    <div class="role-card" onclick="startApp('employer')">
+      <div class="icon">🏪</div>
+      <h3 id="rc-employer">Arbeitgeber</h3>
+      <p id="rc-employer-sub">Schichten ausschreiben & Personal finden</p>
+    </div>
+    <div class="role-card" onclick="startApp('worker')">
+      <div class="icon">👤</div>
+      <h3 id="rc-worker">Arbeitnehmer</h3>
+      <p id="rc-worker-sub">Schichten finden & Geld verdienen</p>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-logo">Shift<span>Match</span></div>
+    <div class="topbar-right">
+      <span id="role-label" style="font-size:0.78rem;color:var(--text-muted);background:var(--surface);border:1px solid var(--border);padding:0.2rem 0.6rem;border-radius:20px;"></span>
+      <div class="avatar" onclick="goLanding()">↩</div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- ══════ WORKER SCREENS ══════ -->
+
+    <!-- Worker: Feed -->
+    <div class="screen" id="screen-feed">
+      <div class="section-title" id="t-feed-title">Offene Schichten</div>
+      <p class="section-sub" id="t-feed-sub">Jobs in deiner Nähe – sofort bewerben</p>
+      <div class="filter-row">
+        <div class="filter-chip active" onclick="setFilter(this,'all')" id="f-all">Alle</div>
+        <div class="filter-chip" onclick="setFilter(this,'gastr')" id="f-gastr">Gastronomie</div>
+        <div class="filter-chip" onclick="setFilter(this,'bar')" id="f-bar">Bar</div>
+        <div class="filter-chip" onclick="setFilter(this,'event')" id="f-event">Events</div>
+        <div class="filter-chip" onclick="setFilter(this,'hotel')" id="f-hotel">Hotel</div>
+      </div>
+      <div id="shifts-list"></div>
+    </div>
+
+    <!-- Worker: My Shifts -->
+    <div class="screen" id="screen-myshifts">
+      <div class="section-title" id="t-my-title">Meine Schichten</div>
+      <p class="section-sub" id="t-my-sub">Laufende & vergangene Jobs</p>
+      <div id="my-shifts-list"></div>
+    </div>
+
+    <!-- ══════ EMPLOYER SCREENS ══════ -->
+
+    <!-- Employer: Dashboard -->
+    <div class="screen" id="screen-dashboard">
+      <div class="section-title" id="t-dash-title">Dashboard</div>
+      <p class="section-sub" id="t-dash-sub">Übersicht deiner Schichten</p>
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-num accent" style="color:var(--accent)">3</div><div class="stat-label" id="t-stat-open">Offen</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:var(--green)">12</div><div class="stat-label" id="t-stat-filled">Besetzt</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:var(--blue)">28</div><div class="stat-label" id="t-stat-total">Gesamt</div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem" id="t-meine-schichten">Meine Schichten</span>
+        <button class="btn" onclick="openModal('post')" id="t-new-shift">+ Neue Schicht</button>
+      </div>
+      <div id="employer-shifts-list"></div>
+    </div>
+
+    <!-- ══════ SHARED: CHAT ══════ -->
+    <div class="screen" id="screen-chat">
+      <div id="chat-list-view">
+        <div class="section-title" id="t-chat-title">Nachrichten</div>
+        <p class="section-sub" id="t-chat-sub">Direkt kommunizieren</p>
+        <div id="chat-list"></div>
+      </div>
+      <div class="chat-window" id="chat-window">
+        <div class="chat-header">
+          <button class="chat-back" onclick="closeChat()">←</button>
+          <div class="chat-avatar" id="cw-avatar"></div>
+          <div><div class="chat-name" id="cw-name"></div><div style="font-size:0.75rem;color:var(--green)"><span class="badge-dot"></span>Online</div></div>
+        </div>
+        <div class="messages" id="messages"></div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" placeholder="Nachricht..." onkeydown="if(event.key==='Enter')sendMsg()">
+          <button class="send-btn" onclick="sendMsg()">➤</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════ SHARED: RATINGS ══════ -->
+    <div class="screen" id="screen-ratings">
+      <div class="section-title" id="t-rat-title">Bewertungen</div>
+      <p class="section-sub" id="t-rat-sub">Deine Bewertungen & Feedback</p>
+      <div id="ratings-list"></div>
+      <div class="divider"></div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:1rem" id="t-rate-someone">Schicht bewerten</div>
+      <div class="card">
+        <div class="form-group">
+          <label id="t-rate-who">Person / Betrieb</label>
+          <select id="rate-select">
+            <option>Luigi's Ristorante</option>
+            <option>Sky Bar München</option>
+            <option>Max Müller</option>
+            <option>Jana Koch</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label id="t-rate-stars">Bewertung</label>
+          <div class="star-rating" id="star-rating">
+            <span onclick="setStars(1)">★</span><span onclick="setStars(2)">★</span>
+            <span onclick="setStars(3)">★</span><span onclick="setStars(4)">★</span>
+            <span onclick="setStars(5)">★</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label id="t-rate-comment">Kommentar</label>
+          <textarea id="rate-comment" placeholder="Dein Feedback..."></textarea>
+        </div>
+        <button class="btn" onclick="submitRating()" id="t-rate-submit">Bewertung abschicken</button>
+      </div>
+    </div>
+
+    <!-- ══════ SHARED: PROFILE ══════ -->
+    <div class="screen" id="screen-profile">
+      <div class="section-title" id="t-prof-title">Profil</div>
+      <p class="section-sub" id="t-prof-sub">Deine Informationen & Qualifikationen</p>
+      <div class="profile-header">
+        <div class="profile-avatar" id="prof-avatar">M</div>
+        <div>
+          <div class="profile-name" id="prof-name">Max Mustermann</div>
+          <div class="profile-role" id="prof-role">Kellner · München</div>
+          <div class="stars">★★★★★ <span style="color:var(--text-muted);font-size:0.8rem">(4.9 · 23 Bewertungen)</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="form-group">
+          <label id="t-prof-name-l">Name</label>
+          <input type="text" id="prof-name-input" value="Max Mustermann">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label id="t-prof-city">Stadt</label>
+            <input type="text" value="München">
+          </div>
+          <div class="form-group">
+            <label id="t-prof-radius">Radius (km)</label>
+            <input type="number" value="15">
+          </div>
+        </div>
+        <div class="form-group">
+          <label id="t-prof-bio">Über mich</label>
+          <textarea>5 Jahre Erfahrung in der Gastronomie. Zuverlässig, flexibel, teamfähig.</textarea>
+        </div>
+        <div class="form-group">
+          <label id="t-prof-skills">Skills / Qualifikationen</label>
+          <div class="skills-grid" id="skills-grid"></div>
+        </div>
+        <div class="form-group" style="margin-top:1.25rem">
+          <label id="t-avail">Verfügbarkeit</label>
+          <div class="availability-grid" id="avail-grid"></div>
+        </div>
+        <button class="btn" style="width:100%;margin-top:1rem" onclick="saveProfile()" id="t-prof-save">Speichern</button>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- Bottom Nav -->
+  <div class="bottom-nav" id="bottom-nav"></div>
+</div><!-- /app -->
+
+<!-- Modal: Post Shift -->
+<div class="modal-overlay" id="modal-post">
+  <div class="modal">
+    <div class="modal-title" id="t-modal-title">Neue Schicht ausschreiben</div>
+    <div class="form-group">
+      <label id="t-m-role">Position</label>
+      <select id="m-role">
+        <option>Kellner/in</option><option>Barkeeper/in</option><option>Küchenhilfe</option>
+        <option>Servicekraft</option><option>Spüler/in</option><option>Host/Hostess</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label id="t-m-date">Datum</label>
+        <input type="date" id="m-date">
+      </div>
+      <div class="form-group">
+        <label id="t-m-time">Uhrzeit</label>
+        <input type="text" placeholder="18:00 – 23:00" id="m-time">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label id="t-m-pay">Stundenlohn (€)</label>
+        <input type="number" placeholder="14" id="m-pay">
+      </div>
+      <div class="form-group">
+        <label id="t-m-spots">Plätze</label>
+        <input type="number" placeholder="1" id="m-spots">
+      </div>
+    </div>
+    <div class="form-group">
+      <label id="t-m-desc">Beschreibung</label>
+      <textarea placeholder="Was wird gebraucht?" id="m-desc"></textarea>
+    </div>
+    <div class="form-group">
+      <label id="t-m-urgent">Dringend?</label>
+      <select id="m-urgent"><option value="0" id="t-m-no">Nein</option><option value="1" id="t-m-yes">Ja – heute/morgen</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-outline" onclick="closeModal('post')" id="t-m-cancel">Abbrechen</button>
+      <button class="btn" onclick="postShift()" id="t-m-post">Ausschreiben</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Shift Detail (Worker) -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal">
+    <div class="modal-title" id="md-title"></div>
+    <div id="md-content"></div>
+    <div class="modal-actions">
+      <button class="btn-outline" onclick="closeModal('detail')" id="t-md-close">Schließen</button>
+      <button class="btn" onclick="applyShift()" id="t-md-apply">Jetzt bewerben</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Applicants (Employer) -->
+<div class="modal-overlay" id="modal-applicants">
+  <div class="modal">
+    <div class="modal-title" id="ma-title"></div>
+    <div id="ma-content"></div>
+    <div class="modal-actions">
+      <button class="btn-outline" onclick="closeModal('applicants')" id="t-ma-close">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ──
+let currentRole = 'worker';
+let currentLang = 'de';
+let currentScreen = '';
+let starValue = 0;
+let currentShiftId = null;
+let chatOpen = false;
+
+const T = {
+  de: {
+    landing_sub: 'Kurzfristige Schichten sofort besetzen – für Gastro, Events & mehr.',
+    rc_employer: 'Arbeitgeber', rc_employer_sub: 'Schichten ausschreiben & Personal finden',
+    rc_worker: 'Arbeitnehmer', rc_worker_sub: 'Schichten finden & Geld verdienen',
+    feed_title: 'Offene Schichten', feed_sub: 'Jobs in deiner Nähe – sofort bewerben',
+    my_title: 'Meine Schichten', my_sub: 'Laufende & vergangene Jobs',
+    dash_title: 'Dashboard', dash_sub: 'Übersicht deiner Schichten',
+    stat_open: 'Offen', stat_filled: 'Besetzt', stat_total: 'Gesamt',
+    meine_schichten: 'Meine Schichten', new_shift: '+ Neue Schicht',
+    chat_title: 'Nachrichten', chat_sub: 'Direkt kommunizieren',
+    rat_title: 'Bewertungen', rat_sub: 'Deine Bewertungen & Feedback',
+    rate_someone: 'Schicht bewerten', rate_who: 'Person / Betrieb',
+    rate_stars: 'Bewertung', rate_comment: 'Kommentar', rate_submit: 'Bewertung abschicken',
+    prof_title: 'Profil', prof_sub: 'Deine Informationen & Qualifikationen',
+    prof_name_l: 'Name', prof_city: 'Stadt', prof_radius: 'Radius (km)',
+    prof_bio: 'Über mich', prof_skills: 'Skills / Qualifikationen',
+    avail: 'Verfügbarkeit', prof_save: 'Speichern',
+    modal_title: 'Neue Schicht ausschreiben',
+    m_role: 'Position', m_date: 'Datum', m_time: 'Uhrzeit',
+    m_pay: 'Stundenlohn (€)', m_spots: 'Plätze', m_desc: 'Beschreibung',
+    m_urgent: 'Dringend?', m_no: 'Nein', m_yes: 'Ja – heute/morgen',
+    m_cancel: 'Abbrechen', m_post: 'Ausschreiben',
+    md_close: 'Schließen', md_apply: 'Jetzt bewerben', ma_close: 'Schließen',
+    apply_btn: 'Bewerben', details_btn: 'Details',
+    f_all: 'Alle', f_gastr: 'Gastronomie', f_bar: 'Bar', f_event: 'Events', f_hotel: 'Hotel',
+    toast_applied: '✓ Bewerbung abgeschickt!', toast_posted: '✓ Schicht ausgeschrieben!',
+    toast_saved: '✓ Profil gespeichert!', toast_rated: '✓ Bewertung abgeschickt!',
+    toast_accepted: '✓ Bewerber angenommen!',
+    nav_feed: 'Schichten', nav_my: 'Meine', nav_dash: 'Dashboard',
+    nav_chat: 'Chat', nav_rat: 'Bewertungen', nav_prof: 'Profil',
+    urgent: 'Dringend', open_badge: 'Offen', filled_badge: 'Besetzt',
+    applicants: 'Bewerber', view_appl: 'Bewerber ansehen',
+    employer_label: 'Arbeitgeber', worker_label: 'Arbeitnehmer',
+    skills: ['Kellner/in','Barkeeper/in','Küchenhilfe','Servicekraft','Barista','Cocktails','Wein','Host/Hostess','Eventservice','Schichtleitung'],
+    days: ['Mo','Di','Mi','Do','Fr','Sa','So'],
+    chat_msgs: [
+      {name:'Luigi\'s Ristorante',icon:'🍕',preview:'Bist du morgen verfügbar?',time:'14:32',unread:true},
+      {name:'Sky Bar München',icon:'🍸',preview:'Super Arbeit heute Abend!',time:'gestern',unread:false},
+      {name:'Max Müller',icon:'👤',preview:'Ich bin pünktlich da.',time:'Mo',unread:false},
+    ],
+    ratings: [
+      {from:'Luigi\'s Ristorante',stars:5,text:'Sehr zuverlässig und professionell. Gerne wieder!',date:'10.03.2026'},
+      {from:'Sky Bar München',stars:4,text:'Schnelle Einarbeitung, freundlich mit Gästen.',date:'05.03.2026'},
+    ],
+    shifts: [
+      {id:1,title:'Kellner/in gesucht',place:'Luigi\'s Ristorante',cat:'gastr',date:'13.03.2026',time:'18:00–23:00',pay:'€14/h',dist:'1.2 km',spots:2,urgent:true,desc:'Service für 60 Personen, Erfahrung mit POS-System erwünscht.'},
+      {id:2,title:'Barkeeper Abend',place:'Sky Bar München',cat:'bar',date:'14.03.2026',time:'20:00–02:00',pay:'€16/h',dist:'3.5 km',spots:1,urgent:false,desc:'Cocktailkenntnisse erforderlich. Gute Englischkenntnisse von Vorteil.'},
+      {id:3,title:'Servicekraft Event',place:'Olympiapark Catering',cat:'event',date:'15.03.2026',time:'12:00–20:00',pay:'€13/h',dist:'5.0 km',spots:4,urgent:false,desc:'Großevent, Teamwork wichtig. Einheitliche Kleidung wird gestellt.'},
+      {id:4,title:'Küchenhilfe',place:'Hotel Vier Jahreszeiten',cat:'hotel',date:'13.03.2026',time:'07:00–14:00',pay:'€12/h',dist:'2.1 km',spots:1,urgent:true,desc:'Frühstücksservice, Mise en Place, Reinigung. Keine Vorerfahrung nötig.'},
+    ],
+    myshifts: [
+      {title:'Kellner/in – Sky Bar',date:'08.03.2026',time:'20–02 Uhr',status:'done',pay:'€96 erhalten'},
+      {title:'Servicekraft – Messe',date:'05.03.2026',time:'10–18 Uhr',status:'done',pay:'€104 erhalten'},
+      {title:'Barkeeper – Luigi\'s',date:'13.03.2026',time:'18–23 Uhr',status:'upcoming',pay:'€70 erwartet'},
+    ],
+    employer_shifts: [
+      {id:1,title:'Kellner/in gesucht',date:'13.03.2026',time:'18:00–23:00',pay:'€14/h',status:'open',applicants:['Max M.','Jana K.','Tom S.']},
+      {id:2,title:'Barkeeper',date:'14.03.2026',time:'20:00–02:00',pay:'€16/h',status:'filled',applicants:['Lisa W.']},
+      {id:3,title:'Spüler/in',date:'12.03.2026',time:'12:00–18:00',pay:'€12/h',status:'open',applicants:[]},
+    ],
+  },
+  en: {
+    landing_sub: 'Fill last-minute shifts instantly – Gastro, Events & more.',
+    rc_employer: 'Employer', rc_employer_sub: 'Post shifts & find staff',
+    rc_worker: 'Worker', rc_worker_sub: 'Find shifts & earn money',
+    feed_title: 'Open Shifts', feed_sub: 'Jobs near you – apply instantly',
+    my_title: 'My Shifts', my_sub: 'Current & past jobs',
+    dash_title: 'Dashboard', dash_sub: 'Overview of your shifts',
+    stat_open: 'Open', stat_filled: 'Filled', stat_total: 'Total',
+    meine_schichten: 'My Shifts', new_shift: '+ New Shift',
+    chat_title: 'Messages', chat_sub: 'Communicate directly',
+    rat_title: 'Ratings', rat_sub: 'Your ratings & feedback',
+    rate_someone: 'Rate a shift', rate_who: 'Person / Business',
+    rate_stars: 'Rating', rate_comment: 'Comment', rate_submit: 'Submit Rating',
+    prof_title: 'Profile', prof_sub: 'Your info & qualifications',
+    prof_name_l: 'Name', prof_city: 'City', prof_radius: 'Radius (km)',
+    prof_bio: 'About me', prof_skills: 'Skills / Qualifications',
+    avail: 'Availability', prof_save: 'Save',
+    modal_title: 'Post New Shift',
+    m_role: 'Position', m_date: 'Date', m_time: 'Hours',
+    m_pay: 'Hourly wage (€)', m_spots: 'Spots', m_desc: 'Description',
+    m_urgent: 'Urgent?', m_no: 'No', m_yes: 'Yes – today/tomorrow',
+    m_cancel: 'Cancel', m_post: 'Post Shift',
+    md_close: 'Close', md_apply: 'Apply Now', ma_close: 'Close',
+    apply_btn: 'Apply', details_btn: 'Details',
+    f_all: 'All', f_gastr: 'Restaurant', f_bar: 'Bar', f_event: 'Events', f_hotel: 'Hotel',
+    toast_applied: '✓ Application sent!', toast_posted: '✓ Shift posted!',
+    toast_saved: '✓ Profile saved!', toast_rated: '✓ Rating submitted!',
+    toast_accepted: '✓ Applicant accepted!',
+    nav_feed: 'Shifts', nav_my: 'Mine', nav_dash: 'Dashboard',
+    nav_chat: 'Chat', nav_rat: 'Ratings', nav_prof: 'Profile',
+    urgent: 'Urgent', open_badge: 'Open', filled_badge: 'Filled',
+    applicants: 'Applicants', view_appl: 'View Applicants',
+    employer_label: 'Employer', worker_label: 'Worker',
+    skills: ['Waiter/Waitress','Bartender','Kitchen Help','Service Staff','Barista','Cocktails','Wine','Host/Hostess','Event Service','Shift Lead'],
+    days: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+    chat_msgs: [
+      {name:"Luigi's Ristorante",icon:'🍕',preview:'Are you available tomorrow?',time:'14:32',unread:true},
+      {name:'Sky Bar Munich',icon:'🍸',preview:'Great work tonight!',time:'yesterday',unread:false},
+      {name:'Max Müller',icon:'👤',preview:"I'll be on time.",time:'Mon',unread:false},
+    ],
+    ratings: [
+      {from:"Luigi's Ristorante",stars:5,text:'Very reliable and professional. Would hire again!',date:'10.03.2026'},
+      {from:'Sky Bar Munich',stars:4,text:'Quick learner, friendly with guests.',date:'05.03.2026'},
+    ],
+    shifts: [
+      {id:1,title:'Waiter/Waitress needed',place:"Luigi's Ristorante",cat:'gastr',date:'13.03.2026',time:'18:00–23:00',pay:'€14/h',dist:'1.2 km',spots:2,urgent:true,desc:'Service for 60 guests, POS system experience preferred.'},
+      {id:2,title:'Bartender Evening',place:'Sky Bar Munich',cat:'bar',date:'14.03.2026',time:'20:00–02:00',pay:'€16/h',dist:'3.5 km',spots:1,urgent:false,desc:'Cocktail knowledge required. Good English a plus.'},
+      {id:3,title:'Service Staff – Event',place:'Olympiapark Catering',cat:'event',date:'15.03.2026',time:'12:00–20:00',pay:'€13/h',dist:'5.0 km',spots:4,urgent:false,desc:'Large event, teamwork important. Uniform provided.'},
+      {id:4,title:'Kitchen Help',place:'Hotel Vier Jahreszeiten',cat:'hotel',date:'13.03.2026',time:'07:00–14:00',pay:'€12/h',dist:'2.1 km',spots:1,urgent:true,desc:'Breakfast service, mise en place, cleaning. No experience needed.'},
+    ],
+    myshifts: [
+      {title:'Waiter – Sky Bar',date:'08.03.2026',time:'20:00–02:00',status:'done',pay:'€96 received'},
+      {title:'Service – Trade Fair',date:'05.03.2026',time:'10:00–18:00',status:'done',pay:'€104 received'},
+      {title:'Bartender – Luigi\'s',date:'13.03.2026',time:'18:00–23:00',status:'upcoming',pay:'€70 expected'},
+    ],
+    employer_shifts: [
+      {id:1,title:'Waiter/Waitress needed',date:'13.03.2026',time:'18:00–23:00',pay:'€14/h',status:'open',applicants:['Max M.','Jana K.','Tom S.']},
+      {id:2,title:'Bartender',date:'14.03.2026',time:'20:00–02:00',pay:'€16/h',status:'filled',applicants:['Lisa W.']},
+      {id:3,title:'Dishwasher',date:'12.03.2026',time:'12:00–18:00',pay:'€12/h',status:'open',applicants:[]},
+    ],
+  }
+};
+
+let t = T.de;
+
+// ── HELPERS ──
+function $(id){ return document.getElementById(id); }
+function showToast(msg){ const el=$('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2500); }
+function openModal(id){ $('modal-'+id).classList.add('open'); }
+function closeModal(id){ $('modal-'+id).classList.remove('open'); }
+
+function setLang(lang){
+  currentLang = lang;
+  t = T[lang];
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active', b.textContent===lang.toUpperCase()));
+  updateTexts();
+  if($('app').style.display !== 'none') renderCurrentScreen();
+}
+
+function updateTexts(){
+  const ids = {
+    'landing-sub': t.landing_sub,
+    'rc-employer': t.rc_employer, 'rc-employer-sub': t.rc_employer_sub,
+    'rc-worker': t.rc_worker, 'rc-worker-sub': t.rc_worker_sub,
+    't-feed-title': t.feed_title, 't-feed-sub': t.feed_sub,
+    't-my-title': t.my_title, 't-my-sub': t.my_sub,
+    't-dash-title': t.dash_title, 't-dash-sub': t.dash_sub,
+    't-stat-open': t.stat_open, 't-stat-filled': t.stat_filled, 't-stat-total': t.stat_total,
+    't-meine-schichten': t.meine_schichten, 't-new-shift': t.new_shift,
+    't-chat-title': t.chat_title, 't-chat-sub': t.chat_sub,
+    't-rat-title': t.rat_title, 't-rat-sub': t.rat_sub,
+    't-rate-someone': t.rate_someone, 't-rate-who': t.rate_who,
+    't-rate-stars': t.rate_stars, 't-rate-comment': t.rate_comment, 't-rate-submit': t.rate_submit,
+    't-prof-title': t.prof_title, 't-prof-sub': t.prof_sub,
+    't-prof-name-l': t.prof_name_l, 't-prof-city': t.prof_city,
+    't-prof-radius': t.prof_radius, 't-prof-bio': t.prof_bio, 't-prof-skills': t.prof_skills,
+    't-avail': t.avail, 't-prof-save': t.prof_save,
+    't-modal-title': t.modal_title, 't-m-role': t.m_role, 't-m-date': t.m_date,
+    't-m-time': t.m_time, 't-m-pay': t.m_pay, 't-m-spots': t.m_spots,
+    't-m-desc': t.m_desc, 't-m-urgent': t.m_urgent, 't-m-no': t.m_no, 't-m-yes': t.m_yes,
+    't-m-cancel': t.m_cancel, 't-m-post': t.m_post,
+    't-md-close': t.md_close, 't-md-apply': t.md_apply, 't-ma-close': t.ma_close,
+    'f-all': t.f_all, 'f-gastr': t.f_gastr, 'f-bar': t.f_bar, 'f-event': t.f_event, 'f-hotel': t.f_hotel,
+  };
+  Object.entries(ids).forEach(([id,txt])=>{ const el=$(id); if(el) el.textContent=txt; });
+}
+
+// ── INIT ──
+function startApp(role){
+  currentRole = role;
+  $('landing').style.display = 'none';
+  $('app').style.display = 'block';
+  $('role-label').textContent = role === 'employer' ? t.employer_label : t.worker_label;
+  buildNav();
+  const firstScreen = role === 'employer' ? 'dashboard' : 'feed';
+  showScreen(firstScreen);
+  buildProfile();
+  buildAvailability();
+}
+
+function goLanding(){
+  $('landing').style.display = 'flex';
+  $('app').style.display = 'none';
+}
+
+// ── NAV ──
+function buildNav(){
+  const nav = $('bottom-nav');
+  const items = currentRole === 'worker'
+    ? [{s:'feed',icon:'🗓',l:t.nav_feed},{s:'myshifts',icon:'✅',l:t.nav_my},{s:'chat',icon:'💬',l:t.nav_chat,notif:true},{s:'ratings',icon:'⭐',l:t.nav_rat},{s:'profile',icon:'👤',l:t.nav_prof}]
+    : [{s:'dashboard',icon:'📊',l:t.nav_dash},{s:'chat',icon:'💬',l:t.nav_chat,notif:true},{s:'ratings',icon:'⭐',l:t.nav_rat},{s:'profile',icon:'👤',l:t.nav_prof}];
+  nav.innerHTML = items.map(i=>`
+    <button class="nav-item" id="nav-${i.s}" onclick="showScreen('${i.s}')">
+      <div class="nav-icon ${i.notif?'notif-badge':''}">${i.icon}</div>
+      <span>${i.l}</span>
+    </button>`).join('');
+}
+
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const sc = $('screen-'+name);
+  if(sc) sc.classList.add('active');
+  const ni = $('nav-'+name);
+  if(ni) ni.classList.add('active');
+  currentScreen = name;
+  renderCurrentScreen();
+}
+
+function renderCurrentScreen(){
+  if(currentScreen==='feed') renderFeed();
+  else if(currentScreen==='myshifts') renderMyShifts();
+  else if(currentScreen==='dashboard') renderDashboard();
+  else if(currentScreen==='chat') renderChat();
+  else if(currentScreen==='ratings') renderRatings();
+}
+
+// ── FEED ──
+let activeFilter = 'all';
+function setFilter(el, cat){
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  activeFilter = cat;
+  renderFeed();
+}
+function renderFeed(){
+  const list = $('shifts-list');
+  const shifts = t.shifts.filter(s=> activeFilter==='all' || s.cat===activeFilter);
+  list.innerHTML = shifts.map(s=>`
+    <div class="card shift-card" onclick="openShiftDetail(${s.id})">
+      <div class="shift-header">
+        <div class="shift-title">${s.title}</div>
+        <span class="shift-badge ${s.urgent?'badge-urgent':'badge-open'}">${s.urgent?t.urgent:t.open_badge}</span>
+      </div>
+      <div class="shift-meta">
+        <span class="meta-pill">📍 ${s.place}</span>
+        <span class="meta-pill">📅 ${s.date}</span>
+        <span class="meta-pill">⏰ ${s.time}</span>
+        <span class="meta-pill">📏 ${s.dist}</span>
+      </div>
+      <div class="shift-footer">
+        <span class="pay">${s.pay}</span>
+        <button class="apply-btn" onclick="event.stopPropagation();quickApply(${s.id})">${t.apply_btn}</button>
+      </div>
+    </div>`).join('') || `<div class="empty-state"><div class="empty-icon">🔍</div><p>Keine Schichten gefunden.</p></div>`;
+}
+
+function openShiftDetail(id){
+  const s = t.shifts.find(x=>x.id===id);
+  currentShiftId = id;
+  $('md-title').textContent = s.title;
+  $('md-content').innerHTML = `
+    <div class="shift-meta" style="margin-bottom:1rem">
+      <span class="meta-pill">📍 ${s.place}</span>
+      <span class="meta-pill">📅 ${s.date}</span>
+      <span class="meta-pill">⏰ ${s.time}</span>
+      <span class="meta-pill">📏 ${s.dist}</span>
+    </div>
+    <div class="pay" style="font-size:1.3rem;margin-bottom:0.75rem">${s.pay} · ${s.spots} ${currentLang==='de'?'Plätze':'spots'}</div>
+    <p style="color:var(--text-muted);line-height:1.6;font-size:0.9rem">${s.desc}</p>`;
+  openModal('detail');
+}
+
+function quickApply(id){
+  showToast(t.toast_applied);
+}
+function applyShift(){
+  closeModal('detail');
+  showToast(t.toast_applied);
+}
+
+// ── MY SHIFTS ──
+function renderMyShifts(){
+  const list = $('my-shifts-list');
+  list.innerHTML = t.myshifts.map(s=>`
+    <div class="card shift-card">
+      <div class="shift-header">
+        <div class="shift-title">${s.title}</div>
+        <span class="shift-badge ${s.status==='done'?'badge-filled':'badge-urgent'}">${s.status==='done'?(currentLang==='de'?'Abgeschlossen':'Done'):(currentLang==='de'?'Bevorstehend':'Upcoming')}</span>
+      </div>
+      <div class="shift-meta">
+        <span class="meta-pill">📅 ${s.date}</span>
+        <span class="meta-pill">⏰ ${s.time}</span>
+      </div>
+      <div class="shift-footer">
+        <span class="pay" style="color:${s.status==='done'?'var(--green)':'var(--accent2)'}">${s.pay}</span>
+        ${s.status==='done'?`<button class="btn-outline" style="font-size:0.8rem" onclick="showScreen('ratings')">${currentLang==='de'?'Bewerten':'Rate'}</button>`:''}
+      </div>
+    </div>`).join('');
+}
+
+// ── DASHBOARD (EMPLOYER) ──
+function renderDashboard(){
+  const list = $('employer-shifts-list');
+  list.innerHTML = t.employer_shifts.map(s=>`
+    <div class="card shift-card">
+      <div class="shift-header">
+        <div class="shift-title">${s.title}</div>
+        <span class="shift-badge ${s.status==='open'?'badge-open':'badge-filled'}">${s.status==='open'?t.open_badge:t.filled_badge}</span>
+      </div>
+      <div class="shift-meta">
+        <span class="meta-pill">📅 ${s.date}</span>
+        <span class="meta-pill">⏰ ${s.time}</span>
+        <span class="meta-pill">👥 ${s.applicants.length} ${t.applicants}</span>
+      </div>
+      <div class="shift-footer">
+        <span class="pay">${s.pay}</span>
+        <button class="apply-btn" onclick="openApplicants(${s.id})">${t.view_appl}</button>
+      </div>
+    </div>`).join('');
+}
+
+function openApplicants(id){
+  const s = t.employer_shifts.find(x=>x.id===id);
+  $('ma-title').textContent = s.title + ' – ' + t.applicants;
+  if(s.applicants.length === 0){
+    $('ma-content').innerHTML = `<div class="empty-state"><div class="empty-icon">👤</div><p>${currentLang==='de'?'Noch keine Bewerbungen.':'No applications yet.'}</p></div>`;
+  } else {
+    $('ma-content').innerHTML = s.applicants.map((a,i)=>`
+      <div class="applicant-row">
+        <div class="applicant-avatar">👤</div>
+        <div>
+          <div class="applicant-name">${a}</div>
+          <div class="applicant-meta">★★★★☆ · ${currentLang==='de'?'3 Schichten absolviert':'3 shifts completed'}</div>
+        </div>
+        <div class="applicant-actions">
+          <button class="btn-accept" onclick="acceptApplicant('${a}')">${currentLang==='de'?'✓ Annehmen':'✓ Accept'}</button>
+          <button class="btn-reject" onclick="this.parentElement.parentElement.remove()">✕</button>
+        </div>
+      </div>`).join('');
+  }
+  openModal('applicants');
+}
+
+function acceptApplicant(name){
+  showToast(t.toast_accepted);
+  closeModal('applicants');
+}
+
+function postShift(){
+  const role = $('m-role').value;
+  const date = $('m-date').value;
+  const time = $('m-time').value;
+  const pay = $('m-pay').value;
+  if(!pay){ alert(currentLang==='de'?'Stundenlohn eingeben!':'Enter hourly wage!'); return; }
+  const newShift = {id: Date.now(), title: role, date: date||'—', time: time||'—', pay:`€${pay}/h`, status:'open', applicants:[]};
+  t.employer_shifts.unshift(newShift);
+  closeModal('post');
+  renderDashboard();
+  showToast(t.toast_posted);
+}
+
+// ── CHAT ──
+const chatHistory = {
+  "Luigi's Ristorante": [
+    {me:false,text:'Hallo! Bist du morgen für eine Schicht verfügbar?',time:'14:28'},
+    {me:true,text:'Ja, ab 17 Uhr bin ich frei!',time:'14:30'},
+    {me:false,text:'Perfekt – 18 bis 23 Uhr, passt das?',time:'14:32'},
+  ],
+  "Sky Bar München": [{me:false,text:'Super Arbeit heute Abend!',time:'gestern'}],
+  "Sky Bar Munich": [{me:false,text:'Great work tonight!',time:'yesterday'}],
+  "Max Müller": [{me:false,text:'Ich bin pünktlich da.',time:'Mo'}],
+};
+
+function renderChat(){
+  const msgs = t.chat_msgs;
+  $('chat-list').innerHTML = msgs.map(m=>`
+    <div class="chat-list-item" onclick="openChat('${m.name}','${m.icon}')">
+      <div class="chat-avatar">${m.icon}</div>
+      <div class="chat-info">
+        <div class="chat-name">${m.name}</div>
+        <div class="chat-preview">${m.preview}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem">
+        <div class="chat-time">${m.time}</div>
+        ${m.unread?'<div class="unread-dot"></div>':''}
+      </div>
+    </div>`).join('');
+}
+
+function openChat(name, icon){
+  $('cw-name').textContent = name;
+  $('cw-avatar').textContent = icon;
+  const history = chatHistory[name] || [];
+  renderMessages(history, name);
+  $('chat-list-view').style.display = 'none';
+  $('chat-window').classList.add('open');
+  chatOpen = name;
+}
+
+function renderMessages(history, name){
+  $('messages').innerHTML = history.map(m=>`
+    <div>
+      <div class="msg ${m.me?'me':'them'}">${m.text}</div>
+      <div class="msg-time">${m.time}</div>
+    </div>`).join('');
+  $('messages').scrollTop = 9999;
+}
+
+function closeChat(){
+  $('chat-list-view').style.display = 'block';
+  $('chat-window').classList.remove('open');
+  chatOpen = false;
+}
+
+function sendMsg(){
+  const input = $('chat-input');
+  const text = input.value.trim();
+  if(!text) return;
+  if(!chatHistory[chatOpen]) chatHistory[chatOpen] = [];
+  const now = new Date();
+  chatHistory[chatOpen].push({me:true, text, time:`${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`});
+  input.value = '';
+  renderMessages(chatHistory[chatOpen], chatOpen);
+  // Auto reply
+  setTimeout(()=>{
+    const replies = currentLang==='de'
+      ? ['Super, ich gebe dir sofort Bescheid!','Perfekt 👍','Danke für deine schnelle Antwort!','Wir freuen uns auf dich!']
+      : ['Great, I\'ll let you know right away!','Perfect 👍','Thanks for your quick reply!','Looking forward to seeing you!'];
+    chatHistory[chatOpen].push({me:false, text:replies[Math.floor(Math.random()*replies.length)], time:`${now.getHours()}:${String(now.getMinutes()+1).padStart(2,'0')}`});
+    renderMessages(chatHistory[chatOpen], chatOpen);
+  }, 1200);
+}
+
+// ── RATINGS ──
+function renderRatings(){
+  const list = $('ratings-list');
+  list.innerHTML = t.ratings.map(r=>`
+    <div class="rating-card">
+      <div class="rating-header">
+        <span style="font-weight:600">${r.from}</span>
+        <span style="color:var(--text-muted);font-size:0.78rem">${r.date}</span>
+      </div>
+      <div style="color:var(--accent2);margin-bottom:0.4rem">${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</div>
+      <p style="color:var(--text-muted);font-size:0.85rem">${r.text}</p>
+    </div>`).join('');
+}
+
+function setStars(n){
+  starValue = n;
+  document.querySelectorAll('#star-rating span').forEach((s,i)=>s.classList.toggle('lit', i<n));
+}
+
+function submitRating(){
+  if(!starValue){ alert(currentLang==='de'?'Bitte Sterne vergeben!':'Please select stars!'); return; }
+  showToast(t.toast_rated);
+  starValue = 0;
+  document.querySelectorAll('#star-rating span').forEach(s=>s.classList.remove('lit'));
+  $('rate-comment').value = '';
+}
+
+// ── PROFILE ──
+const selectedSkills = new Set([0,2,4]);
+const selectedDays = new Set([4,5]);
+
+function buildProfile(){
+  const grid = $('skills-grid');
+  grid.innerHTML = t.skills.map((s,i)=>`
+    <div class="skill-chip ${selectedSkills.has(i)?'selected':''}" onclick="toggleSkill(this,${i})">${s}</div>`).join('');
+}
+
+function toggleSkill(el, i){
+  selectedSkills.has(i) ? selectedSkills.delete(i) : selectedSkills.add(i);
+  el.classList.toggle('selected');
+}
+
+function buildAvailability(){
+  const grid = $('avail-grid');
+  grid.innerHTML = t.days.map((d,i)=>`
+    <div class="avail-day ${selectedDays.has(i)?'on':''}" onclick="toggleDay(this,${i})">
+      <span class="day-name">${d}</span>
+    </div>`).join('');
+}
+
+function toggleDay(el, i){
+  selectedDays.has(i) ? selectedDays.delete(i) : selectedDays.add(i);
+  el.classList.toggle('on');
+}
+
+function saveProfile(){
+  showToast(t.toast_saved);
+}
+
+function saveProfile(){
+  showToast(t.toast_saved);
+}
+
+function renderCurrentScreen(){
+  if(currentScreen==='feed') renderFeed();
+  else if(currentScreen==='myshifts') renderMyShifts();
+  else if(currentScreen==='dashboard') renderDashboard();
+  else if(currentScreen==='chat') renderChat();
+  else if(currentScreen==='ratings') renderRatings();
+}
+
+// init
+updateTexts();
+// Set today's date as default
+const today = new Date().toISOString().split('T')[0];
+$('m-date').value = today;
+</script>
+</body>
+</html>
